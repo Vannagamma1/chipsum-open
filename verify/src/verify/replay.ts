@@ -36,9 +36,13 @@ export function replaySession(input: VerificationInput): {
   const actionErrors: string[] = []
 
   // Determine how many ticks to process
-  const maxTick = sortedActions.length > 0
-    ? Math.max(...sortedActions.map(a => a.tickNumber)) + 100  // Add buffer after last action
-    : 1000  // Default if no actions
+  // Use expectedFinalState.tickCount if available for exact replay,
+  // otherwise use heuristic based on last action
+  const expectedTickCount = input.expectedFinalState?.tickCount
+  const maxTick = expectedTickCount
+    ?? (sortedActions.length > 0
+      ? Math.max(...sortedActions.map(a => a.tickNumber)) + 100
+      : 1000)
 
   // Process ticks
   while (ticksProcessed < maxTick) {
@@ -67,8 +71,10 @@ export function replaySession(input: VerificationInput): {
     engine.processTick()
     ticksProcessed++
 
-    // Stop if no more actions and we've processed enough ticks
-    if (actionIndex >= sortedActions.length && ticksProcessed > (sortedActions[sortedActions.length - 1]?.tickNumber ?? 0) + 10) {
+    // If using heuristic (no expectedTickCount), stop after enough ticks past last action
+    if (expectedTickCount === undefined &&
+        actionIndex >= sortedActions.length &&
+        ticksProcessed > (sortedActions[sortedActions.length - 1]?.tickNumber ?? 0) + 10) {
       break
     }
   }
