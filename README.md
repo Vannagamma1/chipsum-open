@@ -24,13 +24,32 @@ Because the house commits its seed hash before the player acts, the house cannot
 
 ## Verifying a Session
 
-### Quick Start
+### Install from npm
 
 ```bash
-cd verify
-npm install
-npm run build
+npm install -g chipsum-verify
+```
+
+Or run directly with npx (no install required):
+
+```bash
 npx chipsum-verify session.json
+```
+
+### Getting Your Session Data
+
+After a session ends, download your verification file from the server:
+
+```
+GET /api/sessions/{sessionId}/verification-data
+```
+
+This returns a JSON file containing everything needed to independently replay and verify the session: seeds, configuration, and the full action log.
+
+In a browser, this endpoint triggers a file download (`session-{id}.json`). You can also fetch it programmatically:
+
+```bash
+curl -o session.json https://your-server/api/sessions/{sessionId}/verification-data
 ```
 
 ### CLI Usage
@@ -48,6 +67,47 @@ npx chipsum-verify session.json -o report.txt
 # Verbose mode (shows seed info)
 npx chipsum-verify session.json -v
 ```
+
+Example output:
+
+```
+============================================================
+SESSION VERIFICATION REPORT
+============================================================
+
+Overall Result: VALID
+
+Commitment Verification:
+  House commitment: valid
+  Player commitment: valid
+  Seed combination: valid
+
+Replay Summary:
+  Ticks processed: 110
+  Actions executed: 4
+
+Final State:
+  Capital: $1018.77
+  Current price: $102.20
+
+State Comparison:
+  Match: valid
+
+============================================================
+```
+
+### Full Verification Flow
+
+1. Play a session on Chipsum
+2. When the session ends, the house seed is revealed
+3. Download your session data: `GET /api/sessions/{id}/verification-data`
+4. Run verification: `npx chipsum-verify session.json`
+5. The tool replays every tick deterministically from the seed and confirms:
+   - The house seed matches the hash committed before you played
+   - Your player seed was correctly combined with the house seed
+   - Replaying all price movements and your actions produces the exact same final state
+
+If any of these checks fail, the session is flagged as invalid.
 
 ### Input Format
 
@@ -74,7 +134,10 @@ The verification input is a JSON file containing the session's seeds, configurat
     }
   ],
   "expectedFinalState": {
-    "capital": 950.25
+    "capital": 950.25,
+    "tickCount": 110,
+    "totalProfit": 12.50,
+    "totalLosses": 62.25
   }
 }
 ```
