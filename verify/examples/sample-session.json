@@ -1,0 +1,29 @@
+{
+  "houseSeed": 2863311530,
+  "houseCommitHash": "0afa8c80b21a4d1c3504edba80f49f26c0fae496a5b88b4a1744295796f284e5",
+  "config": {
+    "initialCapital": 1000,
+    "initialPrice": 100,
+    "initialHouseBankroll": 10000000,
+    "tickRateMs": 100
+  },
+  "actionLog": [
+    {
+      "tickNumber": 10,
+      "action": {
+        "type": "open_position",
+        "direction": "long",
+        "sizePercent": 0.5,
+        "leverage": 10
+      },
+      "timestamp": 1706600001000
+    },
+    {
+      "tickNumber": 50,
+      "action": {
+        "type": "close_position"
+      },
+      "timestamp": 1706600005000
+    }
+  ]
+}
