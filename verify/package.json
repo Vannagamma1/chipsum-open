@@ -1,6 +1,6 @@
 {
   "name": "chipsum-verify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Provably fair session verification for Chipsum trading game",
   "license": "MIT",
   "type": "module",
