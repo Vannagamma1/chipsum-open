@@ -59,17 +59,11 @@ export const DEFAULT_HOUSE_EDGE: HouseEdgeConfig = {
 export interface TurboPointsConfig {
   edgeEarnRate: number
   lossEarnRate: number
-  shieldCostRatePerTick: number
-  accelerateCostRate: number
-  accelerateMinCostRate: number
   turboBetCostRate: number
 }
 
 export const DEFAULT_TURBO_POINTS: TurboPointsConfig = {
   edgeEarnRate: 0.20,
   lossEarnRate: 0.02,
-  shieldCostRatePerTick: 0.0005,
-  accelerateCostRate: 0.005,
-  accelerateMinCostRate: 0.001,
   turboBetCostRate: 0.01,
 }

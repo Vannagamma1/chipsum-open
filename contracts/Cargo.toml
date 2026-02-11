@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "programs/lockbox",
     "programs/housebox"
 ]
 resolver = "2"

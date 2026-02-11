@@ -173,6 +173,7 @@ export class GameEngine {
         const fundingCost = positionNotional * FUNDING_RATE_PER_TICK
         // Note: funding is NOT added to houseBankroll here - it's added when position closes
         updatedPosition.cumulativeFunding += fundingCost
+        updatedPosition.totalFundingPaid += fundingCost
         // Earn turbo points from funding edge (funding cost IS the edge - house takes 100%)
         newTurboPoints += calculateEdgePoints(fundingCost)
       }
@@ -261,6 +262,10 @@ export class GameEngine {
           cumulativeFunding: 0,
           capitalAllocated: totalCost,
           totalCapitalInvested: totalCost,
+          accumulatedPnL: 0,
+          originalEntryPrice: this.state.currentPrice,
+          totalFundingPaid: 0,
+          openTick: this.state.tickCount,
         }
         break
       }
@@ -381,6 +386,9 @@ export class GameEngine {
 
         const edgePoints = calculateEdgePoints(spreadCost)
 
+        const lockedInPnL = pricePnL - funding - spreadCost
+        const prevAccumulatedPnL = this.state.position.accumulatedPnL
+
         newState.turboPoints = this.state.turboPoints + edgePoints
         newState.houseBankroll = this.state.houseBankroll + spreadCost + funding - pricePnL
         newState.totalVolumeTraded = this.state.totalVolumeTraded + newNotional
@@ -391,6 +399,8 @@ export class GameEngine {
           leverage: action.targetLeverage,
           cumulativeFunding: 0,
           capitalAllocated: newSize,
+          accumulatedPnL: prevAccumulatedPnL + lockedInPnL,
+          totalFundingPaid: this.state.position.totalFundingPaid + funding,
         }
         break
       }
@@ -418,6 +428,9 @@ export class GameEngine {
         const notionalAtCurrentPrice = units * this.state.currentPrice
         const newLeverage = Math.max(1, notionalAtCurrentPrice / newEquity)
 
+        const addEquityLockedInPnL = pricePnL - funding
+        const addEquityPrevAccumulatedPnL = this.state.position.accumulatedPnL
+
         newState.capital = this.state.capital - additionalCapital
         newState.houseBankroll = this.state.houseBankroll + funding - pricePnL
         newState.position = {
@@ -428,6 +441,8 @@ export class GameEngine {
           cumulativeFunding: 0,
           capitalAllocated: newEquity,
           totalCapitalInvested: this.state.position.totalCapitalInvested + additionalCapital,
+          accumulatedPnL: addEquityPrevAccumulatedPnL + addEquityLockedInPnL,
+          totalFundingPaid: this.state.position.totalFundingPaid + funding,
         }
         break
       }

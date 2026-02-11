@@ -1,7 +1,7 @@
 [package]
 name = "housebox"
 version = "0.1.0"
-description = "Housebox: LP pool and player escrow for Chipsum architecture"
+description = "Housebox: SOL-native LP pool and player escrow"
 edition = "2021"
 
 [lib]

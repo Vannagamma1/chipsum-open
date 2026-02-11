@@ -5,7 +5,7 @@ Chipsum is a provably fair trading game where players trade a synthetic price fe
 This repository contains:
 
 1. **Verification package** (`verify/`) — Standalone tools to independently verify any game session was fair
-2. **Smart contract source** (`contracts/`) — Solana programs deployed on-chain for deposits, escrow, and LP management
+2. **Smart contract source** (`contracts/`) — Solana program deployed on-chain for deposits, escrow, and LP management
 
 ## How Provable Fairness Works
 
@@ -166,12 +166,34 @@ console.log(result.replayedState)   // Final game state from replay
 
 ### Products
 
-| Product | Description | House Edge |
-|---------|-------------|------------|
+| Product | Description | Estimated House Edge |
+|---------|-------------|---------------------|
 | Directional positions | Long/short with 1-1000x leverage | 0.5% spread + 10%/hr funding |
-| Binary options | Call/put with 2-100x multipliers | ~2% built into strike distance |
+| Binary options (naked) | Call/put with 2-100x multipliers | Calibrated to target approximately 1-2% based on Monte Carlo simulation |
+| Binary options (straddle) | Simultaneous call+put with tighter strikes | Calibrated to target approximately 1-2% based on Monte Carlo simulation |
 | Turbo | 10% price move in random direction (50/50) | 1% of notional in turbo points |
 | Shield | Protection from liquidation (1 second per buy) | 0.66% of notional in turbo points |
+
+**Note on options**: 1s and 5s options account for a 2-tick (200ms) server-side execution delay in their strike calibration, targeting approximately 1% estimated edge. 30s and longer options target approximately 2% estimated edge with no execution delay. All edges are estimates from Monte Carlo simulation of tested strategies — untested strategies may experience different effective edges.
+
+### Arcade Mode
+
+In arcade mode, players wager real capital (SOL) and play with virtual capital in a sandboxed game engine. The payout on cashout is determined by how far virtual capital exceeds the wager:
+
+```
+payout = min(CAP, A * max(0, r - drift(t))^P)
+
+r = virtualCapital / wager
+drift(t) = base * t + (accel * t^2) / 2
+
+Parameters: A = 0.99, P = 0.5, CAP = 5.0
+Drift: base = 0.001/tick, accel = 0.0000035/tick^2
+```
+
+- `r` is the return ratio (how many multiples of the wager the player has accumulated)
+- `drift(t)` increases over time, requiring the player to grow capital faster to maintain the same payout
+- The payout function is concave (square root), rewarding consistent growth over lucky spikes
+- Maximum payout is capped at 5x the wager
 
 ### Price Engine
 
@@ -186,31 +208,32 @@ The price engine uses layered coefficients with independent entropy per layer:
 
 Each layer draws from an independently seeded PRNG (Mulberry32), derived from the master game seed via label-based hashing.
 
-## Smart Contracts
+## Smart Contract
 
-Two Solana programs are deployed on devnet:
+One Solana program is deployed on devnet:
 
-### Lockbox (`9ivinBudGu2LvutszVaw6LLMXDfhELt8cGQ7npmBMw2q`)
+### Housebox (`CQ3JPdmZfES8xkUSjBNgzJ3Y1BQqViweL23vkgKmbjDc`)
 
-Bidirectional SOL-to-CHIPS conversion at a fixed rate (1 SOL = 1000 CHIPS).
+SOL-native LP pool, player escrow, and settlement. All deposits, escrow, and settlement operate in SOL via system transfers (no SPL token intermediary for the base currency).
 
-- `initialize` — Create SOL vault and CHIPS mint
-- `deposit_sol` — Deposit SOL, receive CHIPS
-- `withdraw_sol` — Burn CHIPS, receive SOL
-
-### Housebox (`BnoLdADTpKY8zvW7ZoDWvPexQwYuTReDpy7r5ZzaCiGu`)
-
-LP pool, player escrow, and settlement.
-
+**LP operations** — LPs deposit SOL and receive vTokens (SPL tokens) representing their pool share:
 - `initialize` / `initialize_vault` — Two-step program setup
-- `lp_lock` — LP deposits CHIPS, receives vCHIPS (80/20 split with protocol)
-- `request_redemption` / `execute_redemption` — Time-locked LP withdrawal (60s delay)
-- `player_deposit` — Player deposits CHIPS to escrow
-- `player_settle` — Server settles session P&L (server-signed)
-- `player_withdraw` — Player withdraws from escrow (server-authorized)
-- `pause` / `unpause` — Emergency protocol controls
+- `lp_lock` — LP deposits SOL, receives vTokens proportional to pool share (80/20 split with protocol)
+- `request_redemption` / `execute_redemption` — Time-locked LP withdrawal (60s delay, 60s claim window). LP bears pool risk during delay.
+- `close_expired_redemption` — Permissionless cleanup of expired redemption PDAs
 
-### Building Contracts
+**Player operations** — Players deposit SOL to escrow, play game sessions, and withdraw:
+- `player_deposit` — Player deposits SOL to escrow PDA
+- `player_settle` — Server settles session P&L (server-signed, accounting-only — no SOL moves, just solsum/escrow rebalancing)
+- `player_withdraw` — Player withdraws SOL from escrow (server co-signature required)
+- `close_settled_session` — Server reclaims rent from settled session PDAs (1hr cooldown)
+
+**Admin operations**:
+- `pause` / `unpause` — Emergency protocol controls
+- `update_server_pubkey` — Rotate server signing key
+- `withdraw_protocol_vtokens` — Transfer protocol-held vTokens to a wallet for redemption
+
+### Building the Contract
 
 Requires Solana toolchain with Anchor 0.29.0:
 
@@ -225,11 +248,10 @@ cargo build-sbf
 chipsum-open/
 ├── README.md
 ├── LICENSE
-├── contracts/                    # Solana smart contracts
+├── contracts/                    # Solana smart contract
 │   ├── Cargo.toml
 │   └── programs/
-│       ├── lockbox/              # SOL <-> CHIPS conversion
-│       └── housebox/             # LP pool, escrow, settlement
+│       └── housebox/             # SOL-native LP pool, escrow, settlement
 └── verify/                       # Verification package
     ├── package.json
     ├── tsconfig.json
@@ -239,7 +261,7 @@ chipsum-open/
     │   ├── engine/
     │   │   ├── rng.ts            # Mulberry32 PRNG
     │   │   ├── priceEngine.ts    # Layered price generation
-    │   │   └── optionPricing.ts  # Strike calculation
+    │   │   └── optionPricing.ts  # Strike calculation (naked + straddle)
     │   ├── game/
     │   │   ├── types.ts          # All game type definitions
     │   │   ├── constants.ts      # Game rate constants

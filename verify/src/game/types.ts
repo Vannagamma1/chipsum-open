@@ -20,6 +20,10 @@ export interface Position {
   cumulativeFunding: number
   capitalAllocated: number
   totalCapitalInvested: number
+  accumulatedPnL: number       // P&L locked in from previous relever segments
+  originalEntryPrice: number   // Entry price of the very first segment
+  totalFundingPaid: number     // Lifetime funding across all segments
+  openTick: number             // Tick when position was opened (for arcade)
 }
 
 // Option state

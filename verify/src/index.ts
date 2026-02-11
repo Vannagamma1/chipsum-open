@@ -25,6 +25,7 @@ export {
   calculateOptionPayout,
   calculateStrikeDistancePercent,
   getOptionPricingGrid,
+  getStraddlePricingGrid,
   isOptionMultiplierAvailable,
   getMaxMultiplierForDuration,
 } from './engine/optionPricing.js'
